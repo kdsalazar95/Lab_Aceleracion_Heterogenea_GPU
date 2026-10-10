@@ -1,2 +1,2 @@
-option('cuda_arch', type: 'string', value: '53',
+option('gpu_arch', type: 'string', value: '53',
        description: 'Compute capability CUDA sin punto (53 = Jetson Nano)')

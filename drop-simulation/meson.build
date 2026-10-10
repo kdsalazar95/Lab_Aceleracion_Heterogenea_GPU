@@ -22,7 +22,7 @@ executable(
 # sin CUDA se omiten y la version CPU sigue compilando normalmente.
 if add_languages('cuda', required: false)
   # Jetson Nano = Maxwell, compute capability 5.3 (sm_53).
-  cuda_arch = get_option('cuda_arch')
+  cuda_arch = get_option('gpu_arch')
   gpu_cuda_args = [
     '-gencode=arch=compute_@0@,code=sm_@0@'.format(cuda_arch),
     '-Xcompiler=-Wno-pedantic',
