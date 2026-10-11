@@ -38,6 +38,17 @@ if add_languages('cuda', required: false)
     dependencies: opencv,
     install: false,
   )
+   # Optimizacion 3: mismos kernels que v0, compilados con --use_fast_math.
+    executable(
+      'drop_simulation_gpu_v3',
+      [
+        'src/gpu/v3_fast_math_precision/main.cpp',
+        'src/gpu/v3_fast_math_precision/kernels.cu',
+      ],
+      cuda_args: gpu_cuda_args + ['--use_fast_math'],
+      dependencies: opencv,
+      install: false,
+    )
 else
   message('nvcc no encontrado: se omiten los targets GPU')
 endif

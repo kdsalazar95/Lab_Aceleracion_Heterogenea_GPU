@@ -139,4 +139,97 @@ Las diferencias se deben al redondeo de float32: la GPU combina multiplicaciones
 
 ## Optimización 3 — fast math / precisión
 
-_Pendiente._
+La v3 usa los mismos kernels que la v0 (`src/gpu/v3_fast_math_precision/`), compilados con `--use_fast_math` en un target nuevo de `meson.build`.
+
+**GPU v3** (`./build/drop_simulation_gpu_v3`, 900 pasos)
+
+| Corrida | Tiempo (s) | Pasos/s |
+|---|---|---|
+| 1 | 2.2582 | 398.55 |
+| 2 | 2.2332 | 403.01 |
+| 3 | 2.2992 | 391.44 |
+| **Promedio** | **2.264** | **397.67** |
+
+**Desglose v0 vs v3** (promedio, `cudaEvent`)
+
+| Parte | v0 (ms) | v3 (ms) |
+|---|---|---|
+| Kernel `simulate_step` | 37.17 | 35.94 |
+| Kernel `render` | 38.09 | 35.39 |
+| Copias H2D | 592.41 | 582.81 |
+| Copias D2H | 428.07 | 413.31 |
+| `putText` + video (CPU) | 1037.14 | 971.74 |
+
+**Resumen**
+
+| Versión | Tiempo (s) | Pasos/s | Speedup vs CPU | Speedup vs v0 |
+|---|---|---|---|---|
+| CPU base | 12.963 | 69.43 | 1.00x | — |
+| GPU v0 | 2.411 | 373.52 | 5.38x | 1.00x |
+| GPU v3 | 2.264 | 397.67 | 5.73x | 1.06x |
+
+La v3 tarda en promedio 0.15 s menos que la v0, pero casi toda esa diferencia está en el video y en las copias, que fast math no modifica. Los kernels solo bajan unos 4 ms en total, por lo que la mejora real de la optimización se mide con los tiempos de kernel de nsys.
+
+### Perfilado nsys v3
+
+```bash
+~/micromamba/envs/nsys/bin/nsys profile -f true -o profiling/gpu/v3/v3 --stats=true ./build/drop_simulation_gpu_v3
+```
+
+**Kernels v0 vs v3 (`cuda_gpu_kern_sum`)**
+
+| Kernel | v0 promedio (µs) | v3 promedio (µs) | v0 total (ms) | v3 total (ms) | Speedup |
+|---|---|---|---|---|---|
+| `render_kernel` | 9.68 | 7.76 | 8.715 | 6.980 | **1.25x** |
+| `simulate_step_kernel` | 5.89 | 5.62 | 5.298 | 5.059 | 1.05x |
+| **Total kernels** | | | **14.013** | **12.039** | **1.16x** |
+
+**Copias v0 vs v3 (`cuda_gpu_mem_time_sum`)**
+
+| Operación | v0 (ms) | v3 (ms) | Total (MB) |
+|---|---|---|---|
+| Host-to-Device | 379.72 | 362.32 | 4423.68 |
+| Device-to-Host | 210.07 | 200.76 | 2580.48 |
+
+**API de CUDA v3 (`cuda_api_sum`)**
+
+| Función | Total (ms) | Llamadas | % |
+|---|---|---|---|
+| `cudaMemcpy` | 911.11 | 4500 | 63.0 |
+| `cudaEventSynchronize` | 283.18 | 5400 | 19.6 |
+| `cudaMalloc` | 110.82 | 5 | 7.7 |
+| `cudaEventRecord` | 96.92 | 10800 | 6.7 |
+| `cudaLaunchKernel` | 44.18 | 1800 | 3.1 |
+
+`render_kernel` baja de 9.68 a 7.76 µs (20 % menos), porque fast math reemplaza `powf`, `sqrtf` y la división por versiones aproximadas del hardware. `simulate_step_kernel` casi no cambia, ya que solo hace sumas y multiplicaciones. Las copias son iguales en volumen y su pequeña diferencia es variación entre corridas.
+
+### Validación v3 vs CPU
+
+Se ejecutó `./build/drop_simulation_gpu_v3 --validate`, que guarda el error de cada cuadro en `validation/v3_errors.csv`.
+
+| Métrica | v0 | v3 |
+|---|---|---|
+| Error abs. máximo malla | 6.580e-05 | 6.580e-05 |
+| Error abs. medio malla | 1.762e-06 | 1.755e-06 |
+| Dif. máxima de píxel | 1 nivel de gris | 1 nivel de gris |
+| Píxeles distintos | 61 329 (0.017 %) | 61 223 (0.017 %) |
+
+| Cuadro | Error medio | Error máximo | Dif. máx. píxel | Píxeles distintos |
+|---|---|---|---|---|
+| 0 | 2.1e-12 | 1.2e-07 | 0 | 0 |
+| 100 | 2.4e-07 | 5.9e-05 | 1 | 16 |
+| 450 | 1.4e-06 | 2.3e-05 | 1 | 81 |
+| 899 | 4.4e-06 | 1.7e-05 | 1 | 141 |
+
+La precisión prácticamente no cambia. La malla depende de `simulate_step_kernel`, que no usa funciones afectadas por fast math, y en la imagen las aproximaciones de `__powf` y `rsqrtf` quedan por debajo de un nivel de gris. Fast math no tuvo costo de precisión visible en este programa.
+
+### Conclusión de la Optimización 3
+
+| Métrica | v0 | v3 | Cambio |
+|---|---|---|---|
+| Tiempo total (s) | 2.411 | 2.264 | 1.06x |
+| Tiempo de kernels nsys (ms) | 14.01 | 12.04 | 1.16x |
+| `render_kernel` (µs) | 9.68 | 7.76 | 1.25x |
+| Error máximo malla | 6.58e-05 | 6.58e-05 | igual |
+
+Fast math acelera el kernel de render un 25 % sin perder precisión, pero el efecto en el tiempo total es pequeño porque los kernels son solo un 3 % de la ejecución. Para que esta optimización se note en el total, primero hay que reducir las copias host-device (Optimización 1).
