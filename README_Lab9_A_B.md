@@ -125,6 +125,104 @@ A partir de la lectura del código, se identifican estos aspectos para analizar 
 
 ---
 
-## Siguiente etapa: Optimización 1
+## Optimización 1. Reducir la comunicación host-device
 
-La optimización para reducir la comunicación entre el host y el dispositivo queda pendiente para la versión base implementada en GPU.
+Las mediciones de esta sección se hicieron en la misma máquina que la GPU v0 (Intel Core i5-12400F y NVIDIA GeForce RTX 4060 Ti), para comparar contra la v0 en igualdad de condiciones.
+
+
+En la v0 las copias por PCIe ocupaban ~42 % del tiempo total. La v1 (`src/gpu/v1_reduced_transfers/`) deja las mallas en la GPU toda la ejecución.
+
+| Aspecto | v0 | v1 |
+|---|---|---|
+| Mallas | Viven en el host, se copian en cada paso | Viven en la GPU |
+| H2D por cuadro | `previous`, `current` y `height` (3 × 1.56 MiB) | Ninguna, solo una copia inicial |
+| D2H por cuadro | `next` e imagen (1.56 + 1.17 MiB) | Solo la imagen (1.17 MiB) |
+| Rotación de mallas | `swap` de vectores en el host | `std::swap` de punteros en el device |
+| Buffers GPU | 5 (incluye `height`) | 4 (render lee `d_current`) |
+
+**GPU v1** (`./build/drop_simulation_gpu_v1`, 900 pasos)
+
+| Corrida | Tiempo (s) | Pasos/s |
+|---|---|---|
+| 1 | 1.3275 | 677.96 |
+| 2 | 1.3025 | 690.99 |
+| 3 | 1.3341 | 674.59 |
+| **Promedio** | **1.321** | **681.18** |
+
+**Desglose v0 vs v1** (promedio, `cudaEvent`)
+
+| Parte | v0 (ms) | v1 (ms) | v1 % del total |
+|---|---|---|---|
+| Kernel `simulate_step` | 37.17 | 50.86 | 3.8 % |
+| Kernel `render` | 38.09 | 14.43 | 1.1 % |
+| Copias H2D | 592.41 | 0.61 | 0.05 % |
+| Copias D2H | 428.07 | 199.29 | 15.1 % |
+| `putText` + video (CPU) | 1037.14 | 947.41 | 71.7 % |
+| Resto | ~277.6 | ~108.8 | ~8.2 % |
+
+**Volumen transferido** (900 cuadros)
+
+| Operación | v0 (MiB) | v1 (MiB) | Reducción |
+|---|---|---|---|
+| Host-to-Device | 4218.75 | 3.125 | 99.9 % |
+| Device-to-Host | 2460.94 | 1054.69 | 57.1 % |
+| **Total** | **6679.69** | **1057.81** | **84.2 %** |
+
+**Resumen**
+
+| Versión | Tiempo (s) | Pasos/s | Speedup vs CPU | Speedup vs v0 |
+|---|---|---|---|---|
+| CPU base | 12.963 | 69.43 | 1.00x | — |
+| GPU v0 | 2.411 | 373.52 | 5.38x | 1.00x |
+| GPU v1 | 1.321 | 681.18 | **9.81x** | **1.82x** |
+
+El tiempo en copias baja de 1020 ms a 200 ms y la v1 es 1.82 veces más rápida que la v0. Ahora el cuello de botella es `putText` y la escritura del video en CPU, que ocupan ~72 % del total.
+
+### Perfilado nsys v1
+
+```bash
+~/micromamba/envs/nsys/bin/nsys profile -f true -o profiling/gpu/v1/v1 --stats=true ./build/drop_simulation_gpu_v1
+```
+
+**Copias v0 vs v1 (`cuda_gpu_mem_time_sum`)**
+
+| Operación | v0 (ms) | v1 (ms) | v0 copias | v1 copias | v0 (MB) | v1 (MB) |
+|---|---|---|---|---|---|---|
+| Host-to-Device | 379.72 | 0.25 | 2700 | 2 | 4423.68 | 3.28 |
+| Device-to-Host | 210.07 | 84.31 | 1800 | 900 | 2580.48 | 1105.92 |
+| **Total** | **589.79** | **84.57** | **4500** | **902** | **7004.16** | **1109.20** |
+
+**Kernels v0 vs v1 (`cuda_gpu_kern_sum`)**
+
+| Kernel | v0 promedio (µs) | v1 promedio (µs) | v0 total (ms) | v1 total (ms) |
+|---|---|---|---|---|
+| `render_kernel` | 9.68 | 8.96 | 8.715 | 8.060 |
+| `simulate_step_kernel` | 5.89 | 5.71 | 5.298 | 5.139 |
+| **Total kernels** | | | **14.013** | **13.199** |
+
+**API de CUDA v0 vs v1 (`cuda_api_sum`)**
+
+| Función | v0 (ms) | v1 (ms) | v0 llamadas | v1 llamadas |
+|---|---|---|---|---|
+| `cudaMemcpy` | 937.14 | 212.66 | 4500 | 902 |
+| `cudaEventSynchronize` | 294.74 | 96.58 | 5400 | 2701 |
+| `cudaMalloc` | 129.77 | 130.48 | 5 | 4 |
+| `cudaEventRecord` | 101.27 | 51.81 | 10800 | 5402 |
+| `cudaLaunchKernel` | 44.00 | 33.97 | 1800 | 1800 |
+
+El tiempo de copias en la GPU baja de 589.8 ms a 84.6 ms, unas 7 veces menos, y el número de copias pasa de 4500 a 902. Los kernels no cambian, porque el código de los kernels es el mismo que en la v0.
+
+`cudaMemcpy` todavía tarda 212.7 ms en el host aunque la copia en la GPU dura solo 84.3 ms. La diferencia viene de usar memoria paginable, que obliga a pasar por un buffer intermedio. Usar memoria pinned (`cudaMallocHost`) para la imagen podría reducir ese tiempo.
+
+### Validación v1 vs CPU
+
+Se ejecutó `./build/drop_simulation_gpu_v1 --validate`. En este modo la malla se baja al host en cada cuadro solo para comparar, fuera de los tiempos de la versión.
+
+| Métrica | v0 | v1 |
+|---|---|---|
+| Error abs. máximo malla | 6.580e-05 | 6.580e-05 |
+| Error abs. medio malla | 1.762e-06 | 1.762e-06 |
+| Dif. máxima de píxel | 1 nivel de gris | 1 nivel de gris |
+| Píxeles distintos | 61 329 (0.017 %) | 61 329 (0.017 %) |
+
+`validation/v1_errors.csv` es idéntico byte a byte a `validation/v0_errors.csv`. Era lo esperado, porque los kernels son los mismos y solo cambió dónde viven los datos.
