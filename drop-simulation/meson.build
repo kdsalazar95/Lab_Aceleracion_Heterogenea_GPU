@@ -38,6 +38,19 @@ if add_languages('cuda', required: false)
     dependencies: opencv,
     install: false,
   )
+
+  # Optimizacion 1: mallas residentes en la GPU, solo se copia la imagen por cuadro.
+  executable(
+    'drop_simulation_gpu_v1',
+    [
+      'src/gpu/v1_reduced_transfers/main.cpp',
+      'src/gpu/v1_reduced_transfers/kernels.cu',
+    ],
+    cuda_args: gpu_cuda_args,
+    dependencies: opencv,
+    install: false,
+  )
+
    # Optimizacion 3: mismos kernels que v0, compilados con --use_fast_math.
     executable(
       'drop_simulation_gpu_v3',
