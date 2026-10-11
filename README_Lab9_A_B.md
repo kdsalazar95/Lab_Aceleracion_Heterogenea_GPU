@@ -108,9 +108,9 @@ La velocidad de onda configurada es `0.45` celdas por paso. Este valor está por
 
 ### Diagrama de flujo
 
-![Diagrama de flujo de la simulación](docs/diagrama_flujo.png)
+![Diagrama de flujo de la simulación](diagrama_flujo.drawio.png)
 
-*Nota: ajusta la ruta de la imagen si guardaste el diagrama en otra carpeta del repositorio.*
+
 
 El programa inicializa los parámetros, reserva las tres mallas (`previous`, `current` y `next`), aplica la perturbación inicial y abre el archivo de video. Luego recorre los cuadros y ejecuta los pasos de simulación correspondientes. En cada paso se actualiza la malla y se intercambian los buffers mediante `swap`, evitando copiar todo su contenido. Después se renderiza y se escribe el cuadro. Al terminar los 900 cuadros, el programa detiene el cronómetro y muestra el tiempo de ejecución, los pasos simulados y el rendimiento.
 
