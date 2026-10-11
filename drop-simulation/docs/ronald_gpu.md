@@ -39,6 +39,19 @@ meson compile -C build
 | `-Dgpu_arch=89` | RTX 4060 Ti (la Jetson usa 53) |
 | `LDFLAGS` manual | `nvcc` no acepta los flags de enlace por defecto de conda |
 
+## Porteo a CUDA (v0)
+
+Se portaron `simulate_step` y `render_frame` porque se ejecutan en cada cuadro sobre las 409 600 celdas de la malla. `add_drop` se dejó en CPU porque solo corre una vez al inicio.
+
+| Aspecto | Diseño |
+|---|---|
+| Kernels | `simulate_step_kernel` y `render_kernel`, un hilo por celda/píxel |
+| Bloques e hilos | Bloques de 16×16 (256 hilos), grilla de 40×40 bloques |
+| Bordes | `simulate_step` pone el borde en 0; `render` usa clamp en los vecinos |
+| Memoria GPU | 5 buffers con `cudaMalloc` (previous, current, next, height, imagen) |
+| Copias | `cudaMemcpy` síncrono en cada paso y en cada render |
+| Video | `putText` y `VideoWriter` siguen en CPU |
+
 ## Resultados de tiempo
 
 **CPU base** (`./build/drop_simulation`, 900 pasos)
@@ -138,6 +151,8 @@ Las diferencias se deben al redondeo de float32: la GPU combina multiplicaciones
 - `render_kernel` es el kernel más costoso, ya que usa `powf`, `sqrtf` y una división por píxel. Por eso es el kernel donde se espera ver el efecto de la Optimización 3.
 
 ## Optimización 3 — fast math / precisión
+
+Según nsys, `render_kernel` es el kernel más costoso por usar `powf`, `sqrtf` y divisiones. La hipótesis es que fast math lo acelera a cambio de una pequeña pérdida de precisión.
 
 La v3 usa los mismos kernels que la v0 (`src/gpu/v3_fast_math_precision/`), compilados con `--use_fast_math` en un target nuevo de `meson.build`.
 
