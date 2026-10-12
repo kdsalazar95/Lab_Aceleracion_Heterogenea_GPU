@@ -3,7 +3,7 @@
 **Instituto Tecnológico de Costa Rica**
 **Curso:** EL5859 Computación Heterogénea — II Semestre 2026
 **Profesor:** Luis G. León-Vega, Ph.D.
-**Evaluación:** Laboratorio Semana 9 — Ejercicio G
+**Evaluación:** Laboratorio Semana 9 
 
 ---
 
@@ -34,30 +34,43 @@ No se contó con la NVIDIA Jetson Nano. Para que los speedups comparen versiones
 
 **Equipo principal (CPU base, GPU v0, v1 y v3)**
 
-| | CPU | GPU |
-|---|---|---|
-| Modelo | Intel Core i5-12400F | NVIDIA GeForce RTX 4060 Ti |
-| Núcleos / SM | 6 núcleos / 12 hilos | 34 SM (Ada, compute capability 8.9) |
-| Memoria | 16 GB RAM (WSL2: 15 GB) | 16 GB VRAM, 288 GB/s |
-| Caché | L2 7.5 MB, L3 18 MB | L2 32 MB |
-| Bus | — | PCIe 4.0 x8 |
+|               | CPU                     | GPU                                 |
+| ------------- | ----------------------- | ----------------------------------- |
+| Modelo        | Intel Core i5-12400F    | NVIDIA GeForce RTX 4060 Ti          |
+| Núcleos / SM | 6 núcleos / 12 hilos   | 34 SM (Ada, compute capability 8.9) |
+| Memoria       | 16 GB RAM (WSL2: 15 GB) | 16 GB VRAM, 288 GB/s                |
+| Caché        | L2 7.5 MB, L3 18 MB     | L2 32 MB                            |
+| Bus           | —                      | PCIe 4.0 x8                         |
 
-| Herramienta | Versión |
-|---|---|
+| Herramienta       | Versión              |
+| ----------------- | --------------------- |
 | Sistema operativo | Ubuntu 24.04.1 (WSL2) |
-| Compilador (gcc) | 13.4.0 |
-| CUDA / nvcc | 12.9.86 |
-| Driver NVIDIA | 617.14 |
-| Meson / Ninja | 1.12.1 / 1.13.2 |
-| OpenCV | 4.13.0 |
-| Nsight Systems | 2026.3.2 |
+| Compilador (gcc)  | 13.4.0                |
+| CUDA / nvcc       | 12.9.86               |
+| Driver NVIDIA     | 617.14                |
+| Meson / Ninja     | 1.12.1 / 1.13.2       |
+| OpenCV            | 4.13.0                |
+| Nsight Systems    | 2026.3.2              |
+
+Las versiones se obtuvieron con los comandos de verificación del enunciado:
+
+```bash
+g++ --version
+meson --version
+ninja --version
+pkg-config --modversion opencv4
+nvcc --version
+nvidia-smi
+nsys --version
+nvprof --version   # no disponible: nvprof no soporta GPUs Ada (compute capability 8.9)
+```
 
 **Otros equipos usados**
 
-| Uso | Equipo |
-|---|---|
+| Uso                            | Equipo                                                                                               |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------- |
 | Ejercicio A (CPU base inicial) | Intel Core i3-10100F, 15 GiB RAM, Pop!_OS 24.04, g++ 13.3.0, Meson 1.3.2, Ninja 1.11.1, OpenCV 4.6.0 |
-| Optimización 2 | NVIDIA GeForce RTX 4060 Laptop GPU |
+| Optimización 2                | NVIDIA GeForce RTX 4060 Laptop GPU                                                                   |
 
 **Limitaciones del entorno**
 
@@ -93,26 +106,26 @@ La velocidad de onda (`0.45` celdas/paso) está por debajo del límite de estabi
 
 **Parámetros de la simulación**
 
-| Parámetro | Valor |
-|---|---|
-| Resolución | 640 × 640 |
-| Duración (s) | 30 |
-| FPS | 30 |
-| Pasos por cuadro | 1 |
-| Pasos simulados totales | 900 |
-| `wave_speed` | 0.45 |
-| `damping` | 0.006 |
-| `edge_damping` | 0.035 |
-| `drop_radius` / `drop_strength` | 18 / 1.0 |
+| Parámetro                          | Valor      |
+| ----------------------------------- | ---------- |
+| Resolución                         | 640 × 640 |
+| Duración (s)                       | 30         |
+| FPS                                 | 30         |
+| Pasos por cuadro                    | 1          |
+| Pasos simulados totales             | 900        |
+| `wave_speed`                      | 0.45       |
+| `damping`                         | 0.006      |
+| `edge_damping`                    | 0.035      |
+| `drop_radius` / `drop_strength` | 18 / 1.0   |
 
 **Resultados de ejecución CPU base**
 
-| Métrica | Ejercicio A (i3-10100F) | Equipo principal (i5-12400F) |
-|---|---:|---:|
-| Tiempo total (s) | 15.74 ± 0.17 | 12.963 |
-| Pasos simulados | 900 | 900 |
-| Pasos/s | 57.2 ± 0.6 | 69.43 |
-| Número de corridas | 5 (mín. 15.62 s, máx. 16.01 s) | 3 (12.90 – 13.08 s) |
+| Métrica            |          Ejercicio A (i3-10100F) | Equipo principal (i5-12400F) |
+| ------------------- | -------------------------------: | ---------------------------: |
+| Tiempo total (s)    |                    15.74 ± 0.17 |                       12.963 |
+| Pasos simulados     |                              900 |                          900 |
+| Pasos/s             |                      57.2 ± 0.6 |                        69.43 |
+| Número de corridas | 5 (mín. 15.62 s, máx. 16.01 s) |         3 (12.90 – 13.08 s) |
 
 La resolución, la duración y la tasa de cuadros se comprobaron con `ffprobe` sobre `output/drop_simulation.mp4`. Para calcular speedups se usa la CPU base del equipo principal (12.963 s).
 
@@ -132,15 +145,15 @@ Reservar las mallas una sola vez y después solo intercambiar sus papeles coinci
 
 ## 4. Explicación de cada función del programa
 
-| Función / estructura | Propósito | Papel en la simulación |
-|---|---|---|
-| `Config` | Agrupa los parámetros de la malla, el video, la velocidad de onda, el amortiguamiento y la gota. | Fuente única de configuración para todo el programa. |
-| `index_of` | Convierte las coordenadas `(x, y)` en el índice del vector que almacena la malla. | Acceso lineal a la malla, fila por fila. |
-| `add_drop` | Crea la perturbación inicial en el centro de la superficie. | Condición inicial; se ejecuta una sola vez. |
-| `border_absorption` | Aumenta el amortiguamiento cerca de los bordes. | Evita que las ondas reboten en los límites de la malla. |
-| `simulate_step` | Calcula las nuevas alturas con la ecuación de onda amortiguada. | Núcleo numérico; recorre las 409 600 celdas en cada paso. |
-| `render_frame` | Calcula normales, iluminación (`powf`, `sqrt`) y escribe el número de cuadro. | Convierte la malla en imagen; recorre todos los píxeles en cada cuadro. |
-| `main` | Inicializa los datos, ejecuta el ciclo de simulación, genera el video y calcula las métricas. | Orquesta el flujo completo y mide el rendimiento. |
+| Función / estructura | Propósito                                                                                        | Papel en la simulación                                                  |
+| --------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `Config`            | Agrupa los parámetros de la malla, el video, la velocidad de onda, el amortiguamiento y la gota. | Fuente única de configuración para todo el programa.                   |
+| `index_of`          | Convierte las coordenadas`(x, y)` en el índice del vector que almacena la malla.               | Acceso lineal a la malla, fila por fila.                                 |
+| `add_drop`          | Crea la perturbación inicial en el centro de la superficie.                                      | Condición inicial; se ejecuta una sola vez.                             |
+| `border_absorption` | Aumenta el amortiguamiento cerca de los bordes.                                                   | Evita que las ondas reboten en los límites de la malla.                 |
+| `simulate_step`     | Calcula las nuevas alturas con la ecuación de onda amortiguada.                                  | Núcleo numérico; recorre las 409 600 celdas en cada paso.              |
+| `render_frame`      | Calcula normales, iluminación (`powf`, `sqrt`) y escribe el número de cuadro.               | Convierte la malla en imagen; recorre todos los píxeles en cada cuadro. |
+| `main`              | Inicializa los datos, ejecuta el ciclo de simulación, genera el video y calcula las métricas.   | Orquesta el flujo completo y mide el rendimiento.                        |
 
 Las dos funciones más pesadas no se comportan igual. León-Vega (2026) propone distinguir entre las tareas que se ven frenadas por la cantidad de cálculos y las que se ven frenadas por la velocidad con la que llegan los datos, y sugiere comparar cuántas operaciones se hacen por cada dato que se lee (p. 131). Con ese criterio, `simulate_step` hace muy pocas cuentas por cada dato, así que depende sobre todo de la memoria. `render_frame`, en cambio, usa operaciones más costosas, como potencias y raíces, y depende más del cálculo.
 
@@ -182,21 +195,21 @@ callgrind_annotate callgrind.out.<pid>
 
 **Métricas de ejecución**
 
-| Métrica | Resultado |
-|---|---:|
-| Tiempo CPU sin instrumentación | 11.4182 s |
-| Tiempo con Callgrind | 330.224 s |
+| Métrica                         |       Resultado |
+| -------------------------------- | --------------: |
+| Tiempo CPU sin instrumentación  |       11.4182 s |
+| Tiempo con Callgrind             |       330.224 s |
 | Referencias a instrucciones (Ir) | 122 782 185 856 |
 
 **Distribución por función**
 
-| Función | % ciclos (perf) | % Ir (Callgrind) | Observaciones |
-|---|---:|---:|---|
-| `main` (código propio, incluye `simulate_step` y `render_frame` integradas) | — | 43.41 % | El compilador integró las funciones dentro de `main` |
-| `__powf_fma` | 37.34 % | 19.19 % | Iluminación dentro de `render_frame` |
-| `cv::VideoWriter::write` | — | 13.68 % | Codificación del video |
-| `sws_scale` | — | 8.41 % | Conversión de formato de FFmpeg |
-| `main` (inclusivo) | — | 99.51 % | No se suma con las demás filas |
+| Función                                                                           | % ciclos (perf) | % Ir (Callgrind) | Observaciones                                          |
+| ---------------------------------------------------------------------------------- | --------------: | ---------------: | ------------------------------------------------------ |
+| `main` (código propio, incluye `simulate_step` y `render_frame` integradas) |              — |          43.41 % | El compilador integró las funciones dentro de`main` |
+| `__powf_fma`                                                                     |         37.34 % |          19.19 % | Iluminación dentro de`render_frame`                 |
+| `cv::VideoWriter::write`                                                         |              — |          13.68 % | Codificación del video                                |
+| `sws_scale`                                                                      |              — |           8.41 % | Conversión de formato de FFmpeg                       |
+| `main` (inclusivo)                                                               |              — |          99.51 % | No se suma con las demás filas                        |
 
 **Conclusiones del perfilado**
 
@@ -207,16 +220,16 @@ callgrind_annotate callgrind.out.<pid>
 
 Este orden de trabajo sigue lo que plantea León-Vega (2026): antes de optimizar cualquier detalle, hay que comprobar que el problema realmente se presta para la GPU (p. 129). El autor propone hacerse tres preguntas: cuánto trabajo se puede hacer al mismo tiempo, cuánto le toca a cada tarea y cuántos datos hay que mover para hacerlo (León-Vega, 2026, p. 131). El perfilado ayudó a responderlas y mostró que el cálculo de la iluminación y la actualización de la malla eran las partes que más convenía llevar a la tarjeta.
 
-Detalle completo: [EJ_C - Perfilado y rendimiento en CPU.md](EJ_C%20-%20Perfilado%20y%20rendimiento%20%20en%20CPU.md)
+Detalle completo: [EJ_C - Perfilado y rendimiento en CPU.md](<EJ_C%20-%20Perfilado%20y%20rendimiento%20%20en%20CPU.md>)
 
 ---
 
 ## 7. Justificación de las funciones portadas a GPU
 
-| Función portada | Evidencia del perfilado | Por qué es paralelizable | Dependencias / riesgos |
-|---|---|---|---|
-| `render_frame` → `render_kernel` | `__powf_fma` concentra el 37.34 % de los ciclos (perf) | Cada píxel se calcula de forma independiente a partir de sus vecinos | `powf` y `sqrtf` en GPU no redondean igual que en CPU; `putText` sigue en CPU |
-| `simulate_step` → `simulate_step_kernel` | Es parte del 43.41 % de Ir propio de `main`; recorre las 409 600 celdas por paso | Stencil de 5 puntos; cada celda solo lee el estado anterior | Necesita rotar tres buffers; las FMA cambian el redondeo |
+| Función portada                              | Evidencia del perfilado                                                           | Por qué es paralelizable                                             | Dependencias / riesgos                                                              |
+| --------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `render_frame` → `render_kernel`         | `__powf_fma` concentra el 37.34 % de los ciclos (perf)                          | Cada píxel se calcula de forma independiente a partir de sus vecinos | `powf` y `sqrtf` en GPU no redondean igual que en CPU; `putText` sigue en CPU |
+| `simulate_step` → `simulate_step_kernel` | Es parte del 43.41 % de Ir propio de`main`; recorre las 409 600 celdas por paso | Stencil de 5 puntos; cada celda solo lee el estado anterior           | Necesita rotar tres buffers; las FMA cambian el redondeo                            |
 
 **Funciones que se mantuvieron en CPU:** `add_drop` (se ejecuta una vez), `putText` y `cv::VideoWriter::write` (dependen de OpenCV y FFmpeg en el host).
 
@@ -228,22 +241,22 @@ Se llevaron a la GPU las funciones que repiten la misma operación sobre todos l
 
 ### 8.1. Gestión de memoria
 
-| Aspecto | GPU v0 | GPU v1 |
-|---|---|---|
-| Buffers (`cudaMalloc`) | 5: `previous`, `current`, `next`, `height`, imagen | 4: `render` lee directamente `d_current` |
-| H2D por cuadro | `previous`, `current` y `height` (3 × 1.56 MiB) | Ninguna; solo la copia inicial |
-| D2H por cuadro | `next` e imagen (1.56 + 1.17 MiB) | Solo la imagen (1.17 MiB) |
-| Rotación de mallas | `swap` de vectores en el host | `std::swap` de punteros en el device |
-| Copias | `cudaMemcpy` síncrono | `cudaMemcpy` síncrono |
+| Aspecto                  | GPU v0                                                    | GPU v1                                      |
+| ------------------------ | --------------------------------------------------------- | ------------------------------------------- |
+| Buffers (`cudaMalloc`) | 5:`previous`, `current`, `next`, `height`, imagen | 4:`render` lee directamente `d_current` |
+| H2D por cuadro           | `previous`, `current` y `height` (3 × 1.56 MiB)    | Ninguna; solo la copia inicial              |
+| D2H por cuadro           | `next` e imagen (1.56 + 1.17 MiB)                       | Solo la imagen (1.17 MiB)                   |
+| Rotación de mallas      | `swap` de vectores en el host                           | `std::swap` de punteros en el device      |
+| Copias                   | `cudaMemcpy` síncrono                                  | `cudaMemcpy` síncrono                    |
 
 La v1 aplica lo que León-Vega (2026) describe como mantener los datos dentro de la tarjeta: se suben una vez, se trabajan muchas veces ahí y solo se baja el resultado que de verdad se necesita (pp. 137–138).
 
 ### 8.2. Kernels
 
-| Kernel | Entrada | Salida | Configuración (grid / block) | Manejo de bordes |
-|---|---|---|---|---|
-| `simulate_step_kernel` | `previous`, `current` | `next` | Grid 40 × 40, block 16 × 16 (v2: block 32 × 8 con tile `[8+2][32+2]` en shared) | Las celdas del borde se fijan en 0 |
-| `render_kernel` | `height` / `current` | Imagen BGR 640 × 640 | Grid 40 × 40, block 16 × 16 | Los vecinos se acotan (clamp) a la malla |
+| Kernel                   | Entrada                   | Salida                | Configuración (grid / block)                                                       | Manejo de bordes                         |
+| ------------------------ | ------------------------- | --------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------- |
+| `simulate_step_kernel` | `previous`, `current` | `next`              | Grid 40 × 40, block 16 × 16 (v2: block 32 × 8 con tile`[8+2][32+2]` en shared) | Las celdas del borde se fijan en 0       |
+| `render_kernel`        | `height` / `current`  | Imagen BGR 640 × 640 | Grid 40 × 40, block 16 × 16                                                       | Los vecinos se acotan (clamp) a la malla |
 
 Cada grupo de 256 hilos está muy por debajo del máximo de 1024 que permite la tarjeta (León-Vega, 2026, p. 122), y en total se forman 1600 grupos, más que suficientes para mantenerla ocupada (León-Vega, 2026, pp. 132–133). Además, hilos vecinos leen celdas vecinas, lo que, según el mismo autor, permite traer los datos en menos viajes a la memoria (León-Vega, 2026, pp. 134–135).
 
@@ -261,21 +274,21 @@ Después de `render_kernel`, la imagen se copia al host con `cudaMemcpy` D2H en 
 
 **Tolerancia aceptada:** error absoluto de la malla < 1e-4 y diferencia de píxel ≤ 1 nivel de gris, que es lo esperable con redondeo de `float32`.
 
-| Versión | Error medio | Error máximo | Dif. máx. píxel | Píxeles distintos | ¿Dentro de tolerancia? | Archivo |
-|---|---|---|---|---|---|---|
-| GPU v0 | 1.762e-06 | 6.580e-05 (cuadro 125) | 1 | 61 329 (0.017 %) | Sí | [v0_errors.csv](drop-simulation/validation/v0_errors.csv) |
-| GPU v1 | 1.762e-06 | 6.580e-05 | 1 | 61 329 (0.017 %) | Sí | [v1_errors.csv](drop-simulation/validation/v1_errors.csv) |
-| GPU v2 | 1.762e-06 | 6.580e-05 | 1 | 61 329 | Sí | — |
-| GPU v3 | 1.755e-06 | 6.580e-05 | 1 | 61 223 (0.017 %) | Sí | [v3_errors.csv](drop-simulation/validation/v3_errors.csv) |
+| Versión | Error medio | Error máximo          | Dif. máx. píxel | Píxeles distintos | ¿Dentro de tolerancia? | Archivo                                                  |
+| -------- | ----------- | ---------------------- | ----------------- | ------------------ | ----------------------- | -------------------------------------------------------- |
+| GPU v0   | 1.762e-06   | 6.580e-05 (cuadro 125) | 1                 | 61 329 (0.017 %)   | Sí                     | [v0_errors.csv](drop-simulation/validation/v0_errors.csv) |
+| GPU v1   | 1.762e-06   | 6.580e-05              | 1                 | 61 329 (0.017 %)   | Sí                     | [v1_errors.csv](drop-simulation/validation/v1_errors.csv) |
+| GPU v2   | 1.762e-06   | 6.580e-05              | 1                 | 61 329 (0.017 %)   | Sí                     | [v2_errors.csv](drop-simulation/validation/v2_errors.csv) |
+| GPU v3   | 1.755e-06   | 6.580e-05              | 1                 | 61 223 (0.017 %)   | Sí                     | [v3_errors.csv](drop-simulation/validation/v3_errors.csv) |
 
 **Evolución del error por cuadro (v0)**
 
 | Cuadro | Error medio | Error máximo | Dif. máx. píxel | Píxeles distintos |
-|---|---|---|---|---|
-| 0 | 2.1e-12 | 1.2e-07 | 0 | 0 |
-| 100 | 2.4e-07 | 5.9e-05 | 1 | 16 |
-| 450 | 1.4e-06 | 2.3e-05 | 1 | 72 |
-| 899 | 4.5e-06 | 1.9e-05 | 1 | 153 |
+| ------ | ----------- | ------------- | ----------------- | ------------------ |
+| 0      | 2.1e-12     | 1.2e-07       | 0                 | 0                  |
+| 100    | 2.4e-07     | 5.9e-05       | 1                 | 16                 |
+| 450    | 1.4e-06     | 2.3e-05       | 1                 | 72                 |
+| 899    | 4.5e-06     | 1.9e-05       | 1                 | 153                |
 
 **Explicación de las diferencias:** se deben al redondeo de `float32`. La GPU junta una multiplicación y una suma en un solo paso (FMA), y León-Vega (2026) explica que eso puede cambiar levemente el resultado frente a hacerlas por separado (pp. 158–159). Además, sus funciones `powf` y `sqrtf` no redondean igual que las de la CPU. El error crece un poco con los cuadros, pero nunca pasa de 1e-4, y en la imagen cambia como mucho un nivel de gris. `v1_errors.csv` es idéntico byte a byte a `v0_errors.csv`, como se esperaba, porque los kernels son los mismos. En v3 se repitió la validación por el cambio de representación numérica (fast math).
 
@@ -287,15 +300,15 @@ Después de `render_kernel`, la imagen se copia al host con `cudaMemcpy` D2H en 
 
 ### 10.0. GPU base (v0)
 
-| Métrica | Valor |
-|---|---|
-| Tiempo total (s) | 2.411 (3 corridas: 2.373 / 2.377 / 2.482) |
+| Métrica                    | Valor                                               |
+| --------------------------- | --------------------------------------------------- |
+| Tiempo total (s)            | 2.411 (3 corridas: 2.373 / 2.377 / 2.482)           |
 | Tiempo de kernels nsys (ms) | 14.013 (`render` 8.715 + `simulate_step` 5.298) |
-| Tiempo H→D nsys (ms) | 379.72 (2700 copias, 4423.68 MB) |
-| Tiempo D→H nsys (ms) | 210.07 (1800 copias, 2580.48 MB) |
-| Pasos/s | 373.52 |
-| Speedup vs CPU | 5.38x |
-| Error máximo vs CPU | 6.58e-05 |
+| Tiempo H→D nsys (ms)       | 379.72 (2700 copias, 4423.68 MB)                    |
+| Tiempo D→H nsys (ms)       | 210.07 (1800 copias, 2580.48 MB)                    |
+| Pasos/s                     | 373.52                                              |
+| Speedup vs CPU              | 5.38x                                               |
+| Error máximo vs CPU        | 6.58e-05                                            |
 
 **Comando de perfilado**
 
@@ -305,24 +318,24 @@ nsys profile -f true -o profiling/gpu/v0/v0 --stats=true ./build/drop_simulation
 
 **Desglose del tiempo (`cudaEvent`, acumulado en 900 cuadros)**
 
-| Parte | Tiempo (ms) | % del total |
-|---|---:|---:|
-| Kernel `simulate_step` | 37.17 | 1.5 % |
-| Kernel `render` | 38.09 | 1.6 % |
-| Copias H2D | 592.41 | 24.6 % |
-| Copias D2H | 428.07 | 17.8 % |
-| `putText` + video (CPU) | 1037.14 | 43.0 % |
-| Resto | ~277.6 | ~11.5 % |
+| Parte                     | Tiempo (ms) | % del total |
+| ------------------------- | ----------: | ----------: |
+| Kernel`simulate_step`   |       37.17 |       1.5 % |
+| Kernel`render`          |       38.09 |       1.6 % |
+| Copias H2D                |      592.41 |      24.6 % |
+| Copias D2H                |      428.07 |      17.8 % |
+| `putText` + video (CPU) |     1037.14 |      43.0 % |
+| Resto                     |      ~277.6 |     ~11.5 % |
 
 **API de CUDA (`cuda_api_sum`)**
 
-| Función | Total (ms) | Llamadas | % |
-|---|---:|---:|---:|
-| `cudaMemcpy` | 937.14 | 4500 | 62.1 |
-| `cudaEventSynchronize` | 294.74 | 5400 | 19.5 |
-| `cudaMalloc` | 129.77 | 5 | 8.6 |
-| `cudaEventRecord` | 101.27 | 10800 | 6.7 |
-| `cudaLaunchKernel` | 44.00 | 1800 | 2.9 |
+| Función                 | Total (ms) | Llamadas |    % |
+| ------------------------ | ---------: | -------: | ---: |
+| `cudaMemcpy`           |     937.14 |     4500 | 62.1 |
+| `cudaEventSynchronize` |     294.74 |     5400 | 19.5 |
+| `cudaMalloc`           |     129.77 |        5 |  8.6 |
+| `cudaEventRecord`      |     101.27 |    10800 |  6.7 |
+| `cudaLaunchKernel`     |      44.00 |     1800 |  2.9 |
 
 **Cuello de botella identificado:** las copias suman 589.8 ms en la GPU, mientras que los kernels suman solo 14.0 ms. En esta versión el tiempo lo limitan la transferencia por PCIe en cada paso y la escritura del video, no el cálculo. Los tiempos de kernel medidos con `cudaEvent` (~37 ms) son mayores que los de nsys porque incluyen el lanzamiento y la sincronización. Para el análisis se usan los valores de nsys.
 
@@ -340,29 +353,29 @@ León-Vega (2026) descompone el tiempo de la GPU en cuatro partes: preparar el t
 
 **Resultados:**
 
-| Métrica | GPU v0 | GPU v1 | Cambio |
-|---|---:|---:|---:|
-| Tiempo total (s) | 2.411 | 1.321 | −45.2 % |
-| Tiempo de kernels nsys (ms) | 14.013 | 13.199 | 1.06x |
-| Tiempo H→D nsys (ms) | 379.72 | 0.25 | −99.9 % |
-| Tiempo D→H nsys (ms) | 210.07 | 84.31 | −59.9 % |
-| Copias realizadas | 4500 | 902 | −80 % |
-| Volumen transferido (MB) | 7004.16 | 1109.20 | −84.2 % |
-| Pasos/s | 373.52 | 681.18 | +82 % |
-| Speedup vs CPU | 5.38x | 9.81x | |
-| Speedup vs GPU anterior (v0) | 1.00x | 1.82x | |
-| Error máximo vs CPU | 6.58e-05 | 6.58e-05 | igual |
+| Métrica                     |   GPU v0 |   GPU v1 |   Cambio |
+| ---------------------------- | -------: | -------: | -------: |
+| Tiempo total (s)             |    2.411 |    1.321 | −45.2 % |
+| Tiempo de kernels nsys (ms)  |   14.013 |   13.199 |    1.06x |
+| Tiempo H→D nsys (ms)        |   379.72 |     0.25 | −99.9 % |
+| Tiempo D→H nsys (ms)        |   210.07 |    84.31 | −59.9 % |
+| Copias realizadas            |     4500 |      902 |   −80 % |
+| Volumen transferido (MB)     |  7004.16 |  1109.20 | −84.2 % |
+| Pasos/s                      |   373.52 |   681.18 |    +82 % |
+| Speedup vs CPU               |    5.38x |    9.81x |          |
+| Speedup vs GPU anterior (v0) |    1.00x |    1.82x |          |
+| Error máximo vs CPU         | 6.58e-05 | 6.58e-05 |    igual |
 
 **Desglose v0 vs v1 (`cudaEvent`)**
 
-| Parte | v0 (ms) | v1 (ms) | v1 % del total |
-|---|---:|---:|---:|
-| Kernel `simulate_step` | 37.17 | 50.86 | 3.8 % |
-| Kernel `render` | 38.09 | 14.43 | 1.1 % |
-| Copias H2D | 592.41 | 0.61 | 0.05 % |
-| Copias D2H | 428.07 | 199.29 | 15.1 % |
-| `putText` + video (CPU) | 1037.14 | 947.41 | 71.7 % |
-| Resto | ~277.6 | ~108.8 | ~8.2 % |
+| Parte                     | v0 (ms) | v1 (ms) | v1 % del total |
+| ------------------------- | ------: | ------: | -------------: |
+| Kernel`simulate_step`   |   37.17 |   50.86 |          3.8 % |
+| Kernel`render`          |   38.09 |   14.43 |          1.1 % |
+| Copias H2D                |  592.41 |    0.61 |         0.05 % |
+| Copias D2H                |  428.07 |  199.29 |         15.1 % |
+| `putText` + video (CPU) | 1037.14 |  947.41 |         71.7 % |
+| Resto                     |  ~277.6 |  ~108.8 |         ~8.2 % |
 
 **Cuánto mejoró el rendimiento:** la v1 es 1.82 veces más rápida que la v0 y alcanza 9.81x respecto a la CPU. El tiempo de copias en la GPU baja de 589.8 ms a 84.6 ms, unas 7 veces menos. `cudaMemcpy` todavía tarda 212.7 ms en el host, aunque la copia en la GPU dura 84.3 ms, porque se usa memoria paginable. Con memoria pinned (`cudaMallocHost`) ese tiempo podría bajar: León-Vega (2026) explica que, al reservar la memoria de esa forma, el sistema operativo no la cambia de lugar y la tarjeta puede copiarla de manera más directa (p. 145). El nuevo cuello de botella es `putText` y la escritura del video en CPU (~72 %).
 
@@ -380,15 +393,15 @@ León-Vega (2026) descompone el tiempo de la GPU en cuatro partes: preparar el t
 
 **Resultados** (equipo secundario: RTX 4060 Laptop GPU, promedio de 3 corridas sin `--validate`):
 
-| Métrica | GPU v0 (mismo equipo) | v2 16 × 16 | v2 32 × 8 | Cambio 32 × 8 vs v0 |
-|---|---:|---:|---:|---:|
-| Tiempo total (s) | 2.709 | 2.755 | 2.736 | +1.0 % |
-| Kernel `simulate_step` (ms, `cudaEvent`) | 26.35 | 32.54 | 31.02 | +17.7 % |
-| Tiempo H→D / D→H | — | — | — | igual que v0 (mismas copias) |
-| Pasos/s | 332.26 | 326.97 | 329.27 | −0.9 % |
-| Speedup vs CPU (estimado\*) | 5.38x | 5.29x | 5.32x | |
-| Speedup vs GPU anterior (v0) | 1.00x | 0.98x | 0.99x | kernel: 0.85x |
-| Error máximo vs CPU | 6.58e-05 | 6.58e-05 | 6.58e-05 | igual |
+| Métrica                                    | GPU v0 (mismo equipo) | v2 16 × 16 | v2 32 × 8 | Cambio 32 × 8 vs v0 |
+| ------------------------------------------- | --------------------: | ----------: | ---------: | -------------------: |
+| Tiempo total (s)                            |                 2.709 |       2.755 |      2.736 |               +1.0 % |
+| Kernel`simulate_step` (ms, `cudaEvent`) |                 26.35 |       32.54 |      31.02 |              +17.7 % |
+| Tiempo H→D / D→H                          |                       |             |            |                      |
+| Pasos/s                                     |                332.26 |      326.97 |     329.27 |              −0.9 % |
+| Speedup vs CPU (estimado\*)                 |                 5.38x |       5.29x |      5.32x |                      |
+| Speedup vs GPU anterior (v0)                |                 1.00x |       0.98x |      0.99x |        kernel: 0.85x |
+| Error máximo vs CPU                        |              6.58e-05 |    6.58e-05 |   6.58e-05 |                igual |
 
 \* La CPU base no se midió en el equipo secundario. Para estimarla se supone que la v0 logra el mismo speedup sobre CPU en ambos equipos (12.963 s / 2.411 s = 5.377x). Con esa suposición, la CPU base estimada en el equipo secundario es 2.709 s × 5.377 ≈ 14.57 s, y el speedup de cada configuración es:
 
@@ -422,18 +435,18 @@ cuda_args: gpu_cuda_args + ['--use_fast_math'],
 
 **Resultados:**
 
-| Métrica | GPU v0 | GPU v3 | Cambio |
-|---|---:|---:|---:|
-| Tiempo total (s) | 2.411 | 2.264 | −6.1 % |
-| Tiempo de kernels nsys (ms) | 14.013 | 12.039 | 1.16x |
-| `render_kernel` promedio (µs) | 9.68 | 7.76 | 1.25x |
-| `simulate_step_kernel` promedio (µs) | 5.89 | 5.62 | 1.05x |
-| Tiempo H→D nsys (ms) | 379.72 | 362.32 | igual volumen |
-| Tiempo D→H nsys (ms) | 210.07 | 200.76 | igual volumen |
-| Pasos/s | 373.52 | 397.67 | +6.5 % |
-| Speedup vs CPU | 5.38x | 5.73x | |
-| Speedup vs GPU anterior (v0) | 1.00x | 1.06x | |
-| Error máximo vs CPU | 6.58e-05 | 6.58e-05 | igual |
+| Métrica                                |   GPU v0 |   GPU v3 |        Cambio |
+| --------------------------------------- | -------: | -------: | ------------: |
+| Tiempo total (s)                        |    2.411 |    2.264 |       −6.1 % |
+| Tiempo de kernels nsys (ms)             |   14.013 |   12.039 |         1.16x |
+| `render_kernel` promedio (µs)        |     9.68 |     7.76 |         1.25x |
+| `simulate_step_kernel` promedio (µs) |     5.89 |     5.62 |         1.05x |
+| Tiempo H→D nsys (ms)                   |   379.72 |   362.32 | igual volumen |
+| Tiempo D→H nsys (ms)                   |   210.07 |   200.76 | igual volumen |
+| Pasos/s                                 |   373.52 |   397.67 |        +6.5 % |
+| Speedup vs CPU                          |    5.38x |    5.73x |               |
+| Speedup vs GPU anterior (v0)            |    1.00x |    1.06x |               |
+| Error máximo vs CPU                    | 6.58e-05 | 6.58e-05 |         igual |
 
 **Cuánto mejoró el rendimiento:** `render_kernel` baja de 9.68 µs a 7.76 µs (20 % menos), porque fast math usa versiones aproximadas del hardware de `powf`, `sqrtf` y la división. `simulate_step_kernel` casi no cambia porque solo hace sumas y multiplicaciones. En el tiempo total la mejora es de solo 0.15 s, y la mayor parte de esa diferencia está en el video y las copias, que fast math no modifica, por lo que es variación entre corridas. Los kernels representan solo el 3 % de la ejecución.
 
@@ -445,24 +458,26 @@ cuda_args: gpu_cuda_args + ['--use_fast_math'],
 
 Equipo principal (i5-12400F + RTX 4060 Ti), 900 pasos, promedio de 3 corridas.
 
-| Versión | Tiempo total | Pasos/s | Speedup | Error máximo |
-|---|---:|---:|---:|---:|
-| CPU base | 12.963 s | 69.43 | 1.00x | — |
-| GPU base (v0) | 2.411 s | 373.52 | 5.38x | 6.58e-05 |
-| Optimización 1 — reducción de transferencias (v1) | 1.321 s | 681.18 | **9.81x** | 6.58e-05 |
-| Optimización 2 — memoria compartida (v2)\* | 2.736 s | 329.27 | 5.32x (estimado) | 6.58e-05 |
-| Optimización 3 — fast math (v3) | 2.264 s | 397.67 | 5.73x | 6.58e-05 |
+| Versión                                             | Tiempo total | Pasos/s |          Speedup | Error máximo |
+| ---------------------------------------------------- | -----------: | ------: | ---------------: | ------------: |
+| CPU base                                             |     12.963 s |   69.43 |            1.00x |            — |
+| GPU base (v0)                                        |      2.411 s |  373.52 |            5.38x |      6.58e-05 |
+| Optimización 1 — reducción de transferencias (v1) |      1.321 s |  681.18 |  **9.81x** |      6.58e-05 |
+| Optimización 2 — memoria compartida (v2)\*         |      2.736 s |  329.27 | 5.32x (estimado) |      6.58e-05 |
+| Optimización 3 — fast math (v3)                    |      2.264 s |  397.67 |            5.73x |      6.58e-05 |
 
 \* La v2 se midió en el equipo secundario (RTX 4060 Laptop), donde la v0 tardó 2.709 s. Su speedup respecto a la CPU se estimó como 5.377 × (2.709 / 2.736) = 5.32x (ver sección 10.2).
 
 **Desglose de tiempos GPU (nsys)**
 
-| Versión | Kernels (ms) | H→D (ms) | D→H (ms) | Speedup vs v0 |
-|---|---:|---:|---:|---:|
-| GPU base (v0) | 14.013 | 379.72 | 210.07 | 1.00x |
-| Optimización 1 (v1) | 13.199 | 0.25 | 84.31 | 1.82x |
-| Optimización 2 (v2)\* | 31.02 (`simulate_step`, `cudaEvent`) | igual que v0 | igual que v0 | 0.99x |
-| Optimización 3 (v3) | 12.039 | 362.32 | 200.76 | 1.06x |
+| Versión               |                             Kernels (ms) | H→D (ms) | D→H (ms) | Speedup vs v0 |
+| ---------------------- | ---------------------------------------: | --------: | --------: | ------------: |
+| GPU base (v0)          |                                   14.013 |    379.72 |    210.07 |         1.00x |
+| Optimización 1 (v1)   |                                   13.199 |      0.25 |     84.31 |         1.82x |
+| Optimización 2 (v2)\* | 31.02 (`simulate_step`, `cudaEvent`) |           |           |         0.99x |
+| Optimización 3 (v3)   |                                   12.039 |    362.32 |    200.76 |         1.06x |
+
+**Nota sobre `results/benchmarks.csv`:** ese archivo corresponde a una corrida posterior con `scripts/run_benchmarks.sh` (3 corridas por versión). Las tablas de este reporte provienen de las mediciones originales de cada etapa. Los promedios del CSV (CPU 12.536 s, v0 2.352 s, v1 1.363 s, v2 2.336 s, v3 2.320 s) difieren a lo sumo un 3.4 % de los de la tabla y no cambian el orden de las versiones ni las conclusiones.
 
 Separar el tiempo en cálculo, subida de datos y bajada de datos sigue la forma en que León-Vega (2026) reparte el tiempo total de la GPU (pp. 131–132), y permite ver qué parte mejora cada optimización.
 
@@ -512,7 +527,7 @@ meson compile -C build
 nsys profile -f true -o profiling/gpu/v0/v0 --stats=true ./build/drop_simulation_gpu_v0
 ```
 
-**Salida:** `output/drop_simulation.mp4` (video de la versión final: _ruta_).
+**Salida:** cada versión escribe su propio video en `drop-simulation/output/` (`drop_simulation.mp4` para la CPU y `drop_simulation_gpu_vN.mp4` para la GPU). El video de la versión final (v1, la más rápida) es [drop_simulation_final.mp4](drop-simulation/output/drop_simulation_final.mp4), y [drop_simulation_comparativo.mp4](drop-simulation/output/drop_simulation_comparativo.mp4) muestra todas las versiones lado a lado.
 
 ---
 
@@ -520,11 +535,10 @@ nsys profile -f true -o profiling/gpu/v0/v0 --stats=true ./build/drop_simulation
 
 - Código CPU comentado: [drop_simulation_comentado_revisado.cpp](drop-simulation/src/drop_simulation_comentado_revisado.cpp)
 - Ejercicios A, B y Optimización 1: [README_Lab9_A_B.md](README_Lab9_A_B.md)
-- Lectura, perfilado CPU y Optimización 2: [EJ_C - Perfilado y rendimiento en CPU.md](EJ_C%20-%20Perfilado%20y%20rendimiento%20%20en%20CPU.md)
+- Lectura, perfilado CPU y Optimización 2: [EJ_C - Perfilado y rendimiento en CPU.md](<EJ_C%20-%20Perfilado%20y%20rendimiento%20%20en%20CPU.md>)
 - GPU v0, validación y Optimización 3: [ronald_gpu.md](drop-simulation/docs/ronald_gpu.md)
 - Perfiles de Nsight Systems: [profiling/gpu/](drop-simulation/profiling/gpu/)
 - Validación: [validation/](drop-simulation/validation/)
-- Declaración de uso de IA: _según la norma del curso._
 
 ---
 
