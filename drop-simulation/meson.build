@@ -51,6 +51,18 @@ if add_languages('cuda', required: false)
     install: false,
   )
 
+  # Optimizacion 2: simulate_step con memoria compartida y accesos coalesced.
+  executable(
+    'drop_simulation_gpu_v2',
+    [
+      'src/gpu/v2_shared_memory/main.cpp',
+      'src/gpu/v2_shared_memory/kernels.cu',
+    ],
+    cuda_args: gpu_cuda_args,
+    dependencies: opencv,
+    install: false,
+  )
+
    # Optimizacion 3: mismos kernels que v0, compilados con --use_fast_math.
     executable(
       'drop_simulation_gpu_v3',

@@ -1,12 +1,12 @@
-// GPU v0 (linea base): porteo directo a CUDA de simulate_step() y
-// render_frame(), sin optimizaciones. Mantiene el mismo flujo que la version
-// CPU (src/main.cpp): las mallas viven en el host y en cada paso se copian a
-// la GPU y de vuelta. El texto del cuadro y la escritura del video siguen en CPU.
+// GPU v2 (Optimizacion 2): mismo flujo que v0, pero simulate_step_kernel usa
+// memoria compartida (tiles de 32x8 con halo) para reutilizar los vecinos y
+// leer la malla de forma coalesced. Las copias host-device son las mismas que v0.
+// El texto del cuadro y la escritura del video siguen en CPU.
 //
 // Uso:
-//   ./build/drop_simulation_gpu_v0                 # genera el video y mide
-//   ./build/drop_simulation_gpu_v0 --validate      # ademas compara contra CPU
-//   ./build/drop_simulation_gpu_v0 --output <ruta.mp4> --csv <errores.csv>
+//   ./build/drop_simulation_gpu_v2                 # genera el video y mide
+//   ./build/drop_simulation_gpu_v2 --validate      # ademas compara contra CPU
+//   ./build/drop_simulation_gpu_v2 --output <ruta.mp4> --csv <errores.csv>
 
 #include <algorithm>
 #include <chrono>
@@ -35,8 +35,8 @@ using Clock = std::chrono::steady_clock;
 
 struct Options {
     bool validate = false;
-    std::string output = "output/drop_simulation_gpu_v0.mp4";
-    std::string csv = "validation/v0_errors.csv";
+    std::string output = "output/drop_simulation_gpu_v2.mp4";
+    std::string csv = "validation/v2_errors.csv";
 };
 
 Options parse_args(int argc, char** argv) {
@@ -198,7 +198,7 @@ int main(int argc, char** argv) {
 
             const auto video_start = Clock::now();
             cv::putText(image,
-                        "GPU v0 float32 | frame " + std::to_string(frame),
+                        "GPU v2 float32 | frame " + std::to_string(frame),
                         cv::Point(18, 32),
                         cv::FONT_HERSHEY_SIMPLEX,
                         0.65,
